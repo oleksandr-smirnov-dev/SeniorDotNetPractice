@@ -9,4 +9,6 @@ public class Order
     public OrderStatus Status { get; set; }
 
     public DateTime CreatedAtUtc { get; set; }
+
+    public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
 }

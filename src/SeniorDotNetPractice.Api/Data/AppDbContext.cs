@@ -12,6 +12,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Order> Orders => Set<Order>();
 
+    public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -19,5 +21,13 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Order>()
             .Property(o => o.Status)
             .HasConversion<string>();
+
+        modelBuilder.Entity<OrderItem>()
+            .Property(i => i.UnitPrice)
+            .HasPrecision(18, 2);
+
+        modelBuilder.Entity<Order>()
+            .HasIndex(o => o.OrderNumber)
+            .IsUnique();
     }
 }
