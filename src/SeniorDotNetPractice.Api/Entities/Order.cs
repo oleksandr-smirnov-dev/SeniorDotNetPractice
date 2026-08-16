@@ -2,6 +2,8 @@ namespace SeniorDotNetPractice.Api.Entities;
 
 public class Order
 {
+    public const int OrderNumberMaxLength = 50;
+
     public int Id { get; set; }
 
     public string OrderNumber { get; set; } = string.Empty;

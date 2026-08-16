@@ -23,6 +23,10 @@ public class AppDbContext : DbContext
             .HasConversion<string>();
 
         modelBuilder.Entity<Order>()
+            .Property(o => o.OrderNumber)
+            .HasMaxLength(Order.OrderNumberMaxLength);
+
+        modelBuilder.Entity<Order>()
             .ToTable(tableBuilder =>
                 tableBuilder.HasCheckConstraint(
                     "CK_Orders_Status_Valid",
@@ -31,6 +35,10 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<OrderItem>()
             .Property(i => i.UnitPrice)
             .HasPrecision(18, 2);
+
+        modelBuilder.Entity<OrderItem>()
+            .Property(i => i.ProductName)
+            .HasMaxLength(OrderItem.ProductNameMaxLength);
 
         modelBuilder.Entity<Order>()
             .HasIndex(o => o.OrderNumber)

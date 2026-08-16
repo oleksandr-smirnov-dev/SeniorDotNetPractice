@@ -2,6 +2,8 @@ namespace SeniorDotNetPractice.Api.Entities;
 
 public class OrderItem
 {
+    public const int ProductNameMaxLength = 200;
+
     public int Id { get; set; }
 
     public int OrderId { get; set; }

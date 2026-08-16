@@ -5,6 +5,7 @@ using SeniorDotNetPractice.Api.Data;
 using SeniorDotNetPractice.Api.Entities;
 using SeniorDotNetPractice.Api.Requests;
 using SeniorDotNetPractice.Api.Responses;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 
 namespace SeniorDotNetPractice.Api.Controllers;
@@ -26,7 +27,7 @@ public class OrdersController : ControllerBase
         var order = new Order
         {
             OrderNumber = request.OrderNumber,
-            Status = request.Status,
+            Status = request.Status!.Value,
             CreatedAtUtc = DateTime.UtcNow,
             Items = request.Items
                 .Select(i => new OrderItem
@@ -129,7 +130,7 @@ public class OrdersController : ControllerBase
         }
 
         order.OrderNumber = request.OrderNumber;
-        order.Status = request.Status;
+        order.Status = request.Status!.Value;
 
         _dbContext.Entry(order)
             .Property(o => o.Version)
@@ -144,6 +145,16 @@ public class OrdersController : ControllerBase
             return Conflict(new
             {
                 message = "The order was modified by another request. Reload the latest data and try again."
+            });
+        }
+        catch (DbUpdateException ex)
+            when (ex.InnerException is PostgresException postgresException &&
+                  postgresException.SqlState == PostgresErrorCodes.UniqueViolation &&
+                  postgresException.ConstraintName == "IX_Orders_OrderNumber")
+        {
+            return Conflict(new
+            {
+                message = $"Order with number '{request.OrderNumber}' already exists."
             });
         }
 
@@ -162,7 +173,17 @@ public class OrdersController : ControllerBase
 
         _dbContext.Orders.Remove(order);
 
-        await _dbContext.SaveChangesAsync();
+        try
+        {
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(new
+            {
+                message = "The order was modified by another request. Reload the latest data and try again."
+            });
+        }
 
         return NoContent();
     }
@@ -174,8 +195,8 @@ public class OrdersController : ControllerBase
     string? orderNumber,
     DateTime? createdFrom,
     DateTime? createdTo,
-    int page = 1,
-    int pageSize = 20)
+    [Range(1, int.MaxValue)] int page = 1,
+    [Range(1, 100)] int pageSize = 20)
     {
         var query = _dbContext.Orders.AsNoTracking();
 
@@ -242,7 +263,17 @@ public class OrdersController : ControllerBase
 
         order.Status = OrderStatus.Completed;
 
-        await _dbContext.SaveChangesAsync();
+        try
+        {
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(new
+            {
+                message = "The order was modified by another request. Reload the latest data and try again."
+            });
+        }
 
         return NoContent();
     }
