@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:17.10
+    container_name: senior-dotnet-postgres
+    environment:
+      POSTGRES_DB: senior_dotnet
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: local_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
