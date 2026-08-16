@@ -61,16 +61,17 @@ public class OrdersController : ControllerBase
             Status = order.Status,
             CreatedAtUtc = order.CreatedAtUtc,
             Items = order.Items
-        .Select(i => new OrderItemResponse
-        {
-            Id = i.Id,
-            ProductName = i.ProductName,
-            Quantity = i.Quantity,
-            UnitPrice = i.UnitPrice
-        })
-        .ToList(),
+                .Select(i => new OrderItemResponse
+                {
+                    Id = i.Id,
+                    ProductName = i.ProductName,
+                    Quantity = i.Quantity,
+                    UnitPrice = i.UnitPrice
+                })
+                .ToList(),
             TotalAmount = order.Items.Sum(i => i.UnitPrice * i.Quantity),
-            ItemCount = order.Items.Count
+            ItemCount = order.Items.Count,
+            Version = order.Version
         };
 
         return CreatedAtAction(
@@ -93,6 +94,7 @@ public class OrdersController : ControllerBase
                 CreatedAtUtc = o.CreatedAtUtc,
                 TotalAmount = o.Items.Sum(i => i.UnitPrice * i.Quantity),
                 ItemCount = o.Items.Count,
+                Version = o.Version,
                 Items = o.Items
                     .Select(i => new OrderItemResponse
                     {
@@ -114,9 +116,12 @@ public class OrdersController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    public async Task<ActionResult<Order>> UpdateOrder(int id, UpdateOrderRequest request)
+    public async Task<IActionResult> UpdateOrder(
+    int id,
+    UpdateOrderRequest request)
     {
-        var order = await _dbContext.Orders.FirstOrDefaultAsync(o => o.Id == id);
+        var order = await _dbContext.Orders
+            .FirstOrDefaultAsync(o => o.Id == id);
 
         if (order is null)
         {
@@ -126,9 +131,23 @@ public class OrdersController : ControllerBase
         order.OrderNumber = request.OrderNumber;
         order.Status = request.Status;
 
-        await _dbContext.SaveChangesAsync();
+        _dbContext.Entry(order)
+            .Property(o => o.Version)
+            .OriginalValue = request.Version;
 
-        return Ok(order);
+        try
+        {
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(new
+            {
+                message = "The order was modified by another request. Reload the latest data and try again."
+            });
+        }
+
+        return NoContent();
     }
 
     [HttpDelete("{id:int}")]
@@ -226,93 +245,5 @@ public class OrdersController : ControllerBase
         await _dbContext.SaveChangesAsync();
 
         return NoContent();
-    }
-
-    [HttpGet("n-plus-one-demo")]
-    public async Task<IActionResult> GetOrdersNPlusOneDemo()
-    {
-        var result = await _dbContext.Orders
-            .AsNoTracking()
-            .OrderBy(o => o.Id)
-            .Select(o => new
-            {
-                o.Id,
-                o.OrderNumber,
-                ItemCount = o.Items.Count
-            })
-            .ToListAsync();
-
-        return Ok(result);
-    }
-
-    [HttpGet("status-summary")]
-    public async Task<IActionResult> GetStatusSummary()
-    {
-        var result = await _dbContext.Orders
-            .AsNoTracking()
-            .GroupBy(o => o.Status)
-            .Select(g => new
-            {
-                Status = g.Key,
-                Count = g.Count()
-            })
-            .ToListAsync();
-
-        return Ok(result);
-    }
-
-    [HttpGet("all-items-valid")]
-    public async Task<IActionResult> GetOrdersWithAllValidItems()
-    {
-        var result = await _dbContext.Orders
-            .AsNoTracking()
-            .Where(o =>
-                o.Items.Any() &&
-                o.Items.All(i => i.Quantity > 0))
-            .Select(o => new
-            {
-                o.Id,
-                o.OrderNumber
-            })
-            .ToListAsync();
-
-        return Ok(result);
-    }
-
-    [HttpPost("cancel-pending")]
-    public async Task<IActionResult> CancelPendingOrders()
-    {
-        var affectedRows = await _dbContext.Orders
-            .Where(o => o.Status == OrderStatus.Pending)
-            .ExecuteUpdateAsync(setters =>
-                setters.SetProperty(
-                    o => o.Status,
-                    OrderStatus.Cancelled));
-
-        return Ok(new { affectedRows });
-    }
-
-    [HttpPost("{id:int}/bulk-update-tracking-demo")]
-    public async Task<IActionResult> BulkUpdateTrackingDemo(int id)
-    {
-        var order = await _dbContext.Orders
-            .FirstAsync(o => o.Id == id);
-
-        var statusBefore = order.Status;
-
-        await _dbContext.Orders
-            .Where(o => o.Id == id)
-            .ExecuteUpdateAsync(setters =>
-                setters.SetProperty(
-                    o => o.Status,
-                    OrderStatus.Completed));
-        await _dbContext.Entry(order).ReloadAsync();
-        var statusAfter = order.Status;
-
-        return Ok(new
-        {
-            statusBefore,
-            statusAfter
-        });
     }
 }

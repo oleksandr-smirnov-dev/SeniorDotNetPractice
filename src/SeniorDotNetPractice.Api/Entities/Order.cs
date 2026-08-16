@@ -11,4 +11,6 @@ public class Order
     public DateTime CreatedAtUtc { get; set; }
 
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
+
+    public uint Version { get; set; }
 }

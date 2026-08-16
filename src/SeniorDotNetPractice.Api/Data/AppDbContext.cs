@@ -22,6 +22,12 @@ public class AppDbContext : DbContext
             .Property(o => o.Status)
             .HasConversion<string>();
 
+        modelBuilder.Entity<Order>()
+            .ToTable(tableBuilder =>
+                tableBuilder.HasCheckConstraint(
+                    "CK_Orders_Status_Valid",
+                    "\"Status\" IN ('Pending', 'Rejected', 'Completed', 'Cancelled')"));
+
         modelBuilder.Entity<OrderItem>()
             .Property(i => i.UnitPrice)
             .HasPrecision(18, 2);
@@ -29,5 +35,9 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Order>()
             .HasIndex(o => o.OrderNumber)
             .IsUnique();
+
+        modelBuilder.Entity<Order>()
+            .Property(o => o.Version)
+            .IsRowVersion();
     }
 }

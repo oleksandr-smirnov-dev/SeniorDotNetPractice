@@ -17,4 +17,6 @@ public class OrderDetailsResponse
     public decimal TotalAmount { get; set; }
 
     public int ItemCount { get; set; }
+
+    public uint Version { get; set; }
 }

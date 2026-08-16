@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SeniorDotNetPractice.Api.Data;
@@ -11,9 +12,11 @@ using SeniorDotNetPractice.Api.Data;
 namespace SeniorDotNetPractice.Api.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260815103421_AddOrderConcurrencyToken")]
+    partial class AddOrderConcurrencyToken
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -52,10 +55,7 @@ namespace SeniorDotNetPractice.Api.Data.Migrations
                     b.HasIndex("OrderNumber")
                         .IsUnique();
 
-                    b.ToTable("Orders", t =>
-                        {
-                            t.HasCheckConstraint("CK_Orders_Status_Valid", "\"Status\" IN ('Pending', 'Rejected', 'Completed', 'Cancelled')");
-                        });
+                    b.ToTable("Orders");
                 });
 
             modelBuilder.Entity("SeniorDotNetPractice.Api.Entities.OrderItem", b =>
