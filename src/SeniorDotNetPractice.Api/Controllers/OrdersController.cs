@@ -1,12 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using SeniorDotNetPractice.Api.Caching;
 using SeniorDotNetPractice.Api.Data;
 using SeniorDotNetPractice.Api.Entities;
 using SeniorDotNetPractice.Api.Requests;
 using SeniorDotNetPractice.Api.Responses;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
 
 namespace SeniorDotNetPractice.Api.Controllers;
 
@@ -15,10 +15,17 @@ namespace SeniorDotNetPractice.Api.Controllers;
 public class OrdersController : ControllerBase
 {
     private readonly AppDbContext _dbContext;
+    private readonly ILogger<OrdersController> _logger;
+    private readonly IOrderCache _orderCache;
 
-    public OrdersController(AppDbContext dbContext)
+    public OrdersController(
+    AppDbContext dbContext,
+    IOrderCache orderCache,
+    ILogger<OrdersController> logger)
     {
         _dbContext = dbContext;
+        _orderCache = orderCache;
+        _logger = logger;
     }
 
     [HttpPost]
@@ -82,8 +89,22 @@ public class OrdersController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<Order>> ReadOrder(int id)
+    public async Task<ActionResult<OrderDetailsResponse>> ReadOrder(int id)
     {
+        var cachedOrder = await _orderCache.GetAsync(id);
+
+        if (cachedOrder is not null)
+        {
+            _logger.LogInformation("Cache HIT for order {OrderId}", id);
+            Response.Headers["X-Cache"] = "HIT";
+
+            return Ok(cachedOrder);
+        }
+
+        _logger.LogInformation(
+            "Cache MISS for order {OrderId}. Loading from database.",
+            id);
+
         var order = await _dbContext.Orders
             .AsNoTracking()
             .Where(o => o.Id == id)
@@ -112,6 +133,10 @@ public class OrdersController : ControllerBase
         {
             return NotFound();
         }
+
+        await _orderCache.SetAsync(order);
+
+        Response.Headers["X-Cache"] = "MISS";
 
         return Ok(order);
     }
@@ -158,6 +183,8 @@ public class OrdersController : ControllerBase
             });
         }
 
+        await _orderCache.RemoveAsync(id);
+
         return NoContent();
     }
 
@@ -176,6 +203,8 @@ public class OrdersController : ControllerBase
         try
         {
             await _dbContext.SaveChangesAsync();
+
+            await _orderCache.RemoveAsync(id);
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -266,6 +295,8 @@ public class OrdersController : ControllerBase
         try
         {
             await _dbContext.SaveChangesAsync();
+
+            await _orderCache.RemoveAsync(id);
         }
         catch (DbUpdateConcurrencyException)
         {

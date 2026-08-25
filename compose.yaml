@@ -1,7 +1,29 @@
 services:
+  api:
+    build:
+      context: ./src/SeniorDotNetPractice.Api
+      dockerfile: Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=senior_dotnet;Username=app;Password=local_dev_password"
+      ConnectionStrings__Redis: "redis:6379"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   postgres:
     image: postgres:17.10
-    container_name: senior-dotnet-postgres
     environment:
       POSTGRES_DB: senior_dotnet
       POSTGRES_USER: app
@@ -10,6 +32,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d senior_dotnet"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres-data:
