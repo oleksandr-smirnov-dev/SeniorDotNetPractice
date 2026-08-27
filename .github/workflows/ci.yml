@@ -23,3 +23,6 @@ jobs:
 
       - name: Build
         run: dotnet build src/SeniorDotNetPractice.Api/SeniorDotNetPractice.Api.csproj --no-restore --configuration Release
+
+      - name: Build Docker image
+        run: docker build -t senior-dotnet-practice:${{ github.sha }} src/SeniorDotNetPractice.Api
